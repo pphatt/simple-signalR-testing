@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SignalR Test Client</title>
+</head>
+<body>
+    <h1>SignalR Notifications</h1>
+    <div id="notifications"></div>
+
+    <!-- Include SignalR JavaScript library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/6.0.1/signalr.js"></script>
+    <script>
+        const jwtToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI3MjI5YmE4ZS01YWQyLTQxNGEtYmQxNy01M2U3Zjg2ZTU5NjciLCJpZCI6IjcyMjliYThlLTVhZDItNDE0YS1iZDE3LTUzZTdmODZlNTk2NyIsImh0dHA6Ly9zY2hlbWFzLnhtbHNvYXAub3JnL3dzLzIwMDUvMDUvaWRlbnRpdHkvY2xhaW1zL25hbWVpZGVudGlmaWVyIjoic3R1ZGVudDEiLCJlbWFpbCI6InBoYXR2dTA4MDkwM0BnbWFpbC5jb20iLCJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1lIjoic3R1ZGVudDEiLCJmYWN1bHR5SWQiOiJjZTY3ZmU4NS04MzA5LTQ2YzYtOTRiZi00MDljNDZlNWM4NjEiLCJmYWN1bHR5TmFtZSI6IklUIiwiZ2l2ZW5fbmFtZSI6IlRpZW4gUGhhdCIsImZhbWlseV9uYW1lIjoiVnUiLCJhdmF0YXIiOiIiLCJyb2xlcyI6IlN0dWRlbnQiLCJwZXJtaXNzaW9ucyI6IltcIlBlcm1pc3Npb25zLkNvbnRyaWJ1dGlvbnMuQ3JlYXRlXCIsXCJQZXJtaXNzaW9ucy5Db250cmlidXRpb25zLkVkaXRcIixcIlBlcm1pc3Npb25zLkNvbnRyaWJ1dGlvbnMuRG93bmxvYWRcIl0iLCJqdGkiOiIzYzQyNzViNC1hNTU1LTQ3NWItOWRjZS1kYzRmOWQ0MWQ2NGMiLCJleHAiOjE3NDI4ODU4NDUsImlzcyI6IkFkbWluIiwiYXVkIjoiUHBoYXR0In0.Rf2gvFelSIpbv0Jglt4uI-cJmw21ijvVT1f2KM7IIbQ"
+
+        // Replace with your SignalR hub URL
+        const connection = new signalR.HubConnectionBuilder()
+            .withUrl("https://localhost:8081/hubs/notifications", {
+                accessTokenFactory: () => jwtToken // Pass the JWT to the server
+            }) // Adjust to your SignalR hub URL
+            .configureLogging(signalR.LogLevel.Information)
+            .build();
+
+        // Handle incoming notifications
+        connection.on("GetNewNotification", (notification) => {
+            const div = document.createElement("div");
+            div.textContent = JSON.stringify(notification);
+            document.getElementById("notifications").appendChild(div);
+        });
+
+        // Start the connection
+        connection.start()
+            .then(() => console.log("Connected to SignalR hub"))
+            .catch(err => console.error("Error connecting: ", err));
+
+        connection.on("ReceiveMessage", (user, message) => {
+            const div = document.createElement("div");
+            div.textContent = `Message from ${user}: ${message}`;
+            document.getElementById("notifications").appendChild(div);
+        });
+
+        // Optional: Handle connection close
+        connection.onclose(() => console.log("Disconnected"));
+    </script>
+</body>
+</html>

@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SignalR Chat Test (User 1 vs User 2)</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            background-color: #f0f0f0;
+        }
+        .chat-container {
+            display: flex;
+            gap: 20px;
+        }
+        .chat-box {
+            width: 400px;
+            background-color: white;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .chat-header {
+            padding: 10px;
+            background-color: #007bff;
+            color: white;
+            text-align: center;
+            border-radius: 5px 5px 0 0;
+        }
+        .token-area {
+            padding: 10px;
+            border-bottom: 1px solid #ccc;
+        }
+        .token-area input {
+            width: 100%;
+            padding: 5px;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+            box-sizing: border-box;
+        }
+        .token-area button {
+            margin-top: 5px;
+            padding: 5px 10px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .token-area button:hover {
+            background-color: #218838;
+        }
+        .chat-messages {
+            flex-grow: 1;
+            padding: 10px;
+            overflow-y: auto;
+            max-height: 300px;
+        }
+        .message {
+            margin: 5px 0;
+            padding: 8px;
+            border-radius: 5px;
+            max-width: 70%;
+        }
+        .my-message {
+            background-color: #007bff;
+            color: white;
+            margin-left: auto;
+        }
+        .their-message {
+            background-color: #e9ecef;
+            color: black;
+        }
+        .chat-input {
+            padding: 10px;
+            border-top: 1px solid #ccc;
+            display: flex;
+        }
+        .chat-input input {
+            flex-grow: 1;
+            padding: 5px;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+        }
+        .chat-input button {
+            margin-left: 10px;
+            padding: 5px 10px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .chat-input button:hover {
+            background-color: #0056b3;
+        }
+        .chat-input input:disabled,
+        .chat-input button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <!-- Chat Box for User 1 -->
+        <div class="chat-box">
+            <div class="chat-header">User 1</div>
+            <div class="token-area">
+                <input type="text" id="tokenInput1" placeholder="Enter User 1 Access Token">
+                <button onclick="connectUser1()">Connect</button>
+            </div>
+            <div class="chat-messages" id="messages1"></div>
+            <div class="chat-input">
+                <input type="text" id="input1" placeholder="Type a message..." disabled>
+                <button id="sendButton1" onclick="sendMessage1()" disabled>Send</button>
+            </div>
+        </div>
+
+        <!-- Chat Box for User 2 -->
+        <div class="chat-box">
+            <div class="chat-header">User 2</div>
+            <div class="token-area">
+                <input type="text" id="tokenInput2" placeholder="Enter User 2 Access Token">
+                <button onclick="connectUser2()">Connect</button>
+            </div>
+            <div class="chat-messages" id="messages2"></div>
+            <div class="chat-input">
+                <input type="text" id="input2" placeholder="Type a message..." disabled>
+                <button id="sendButton2" onclick="sendMessage2()" disabled>Send</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SignalR Client Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/6.0.1/signalr.min.js"></script>
+    <script>
+        // SignalR connections
+        let connection1 = null;
+        let connection2 = null;
+
+        // User IDs (hardcoded for simplicity; replace with actual IDs from your tokens if needed)
+        const user1Id = "user1";
+        const user2Id = "user2";
+
+        // DOM elements
+        const messages1 = document.getElementById("messages1");
+        const messages2 = document.getElementById("messages2");
+        const input1 = document.getElementById("input1");
+        const input2 = document.getElementById("input2");
+        const sendButton1 = document.getElementById("sendButton1");
+        const sendButton2 = document.getElementById("sendButton2");
+
+        // Connect User 1
+        function connectUser1() {
+            const token = document.getElementById("tokenInput1").value.trim();
+            if (!token) {
+                alert("Please enter a token for User 1");
+                return;
+            }
+
+            connection1 = new signalR.HubConnectionBuilder()
+                .withUrl("http://localhost:5000/hubs/chat", { // Replace with your server URL
+                    accessTokenFactory: () => token
+                })
+                .configureLogging(signalR.LogLevel.Information)
+                .build();
+
+            connection1.on("ReceiveMessage", (fromUserId, message) => {
+                addMessage(messages1, fromUserId === user1Id, message);
+            });
+
+            connection1.start()
+                .then(() => {
+                    console.log("User 1 connected");
+                    input1.disabled = false;
+                    sendButton1.disabled = false;
+                })
+                .catch(err => console.error("User 1 connection failed:", err));
+        }
+
+        // Connect User 2
+        function connectUser2() {
+            const token = document.getElementById("tokenInput2").value.trim();
+            if (!token) {
+                alert("Please enter a token for User 2");
+                return;
+            }
+
+            connection2 = new signalR.HubConnectionBuilder()
+                .withUrl("http://localhost:5000/hubs/chat", { // Replace with your server URL
+                    accessTokenFactory: () => token
+                })
+                .configureLogging(signalR.LogLevel.Information)
+                .build();
+
+            connection2.on("ReceiveMessage", (fromUserId, message) => {
+                addMessage(messages2, fromUserId === user2Id, message);
+            });
+
+            connection2.start()
+                .then(() => {
+                    console.log("User 2 connected");
+                    input2.disabled = false;
+                    sendButton2.disabled = false;
+                })
+                .catch(err => console.error("User 2 connection failed:", err));
+        }
+
+        // Add message to chat box
+        function addMessage(chatBox, isMyMessage, message) {
+            const msgDiv = document.createElement("div");
+            msgDiv.className = "message";
+            msgDiv.classList.add(isMyMessage ? "my-message" : "their-message");
+            msgDiv.textContent = message;
+            chatBox.appendChild(msgDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        // Send message from User 1
+        function sendMessage1() {
+            const message = input1.value.trim();
+            if (message && connection1) {
+                connection1.invoke("SendMessage", user2Id, message)
+                    .then(() => {
+                        addMessage(messages1, true, message);
+                        input1.value = "";
+                    })
+                    .catch(err => console.error("Send failed:", err));
+            }
+        }
+
+        // Send message from User 2
+        function sendMessage2() {
+            const message = input2.value.trim();
+            if (message && connection2) {
+                connection2.invoke("SendMessage", user1Id, message)
+                    .then(() => {
+                        addMessage(messages2, true, message);
+                        input2.value = "";
+                    })
+                    .catch(err => console.error("Send failed:", err));
+            }
+        }
+
+        // Enable sending with Enter key
+        input1.onkeypress = (e) => { if (e.key === "Enter") sendMessage1(); };
+        input2.onkeypress = (e) => { if (e.key === "Enter") sendMessage2(); };
+    </script>
+</body>
+</html>
