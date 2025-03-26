@@ -32,20 +32,35 @@
             color: white;
             text-align: center;
             border-radius: 5px 5px 0 0;
+            position: relative;
+        }
+        .status {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: #ccc; /* Grey = offline */
+        }
+        .online {
+            background-color: #28a745; /* Green = online */
         }
         .token-area {
             padding: 10px;
             border-bottom: 1px solid #ccc;
+            display: flex;
+            gap: 5px;
         }
         .token-area input {
-            width: 100%;
+            flex-grow: 1;
             padding: 5px;
             border: 1px solid #ccc;
             border-radius: 3px;
             box-sizing: border-box;
         }
         .token-area button {
-            margin-top: 5px;
             padding: 5px 10px;
             background-color: #28a745;
             color: white;
@@ -61,21 +76,33 @@
             padding: 10px;
             overflow-y: auto;
             max-height: 300px;
+            position: relative;
         }
         .message {
             margin: 5px 0;
             padding: 8px;
             border-radius: 5px;
             max-width: 70%;
+            word-wrap: break-word;
         }
         .my-message {
             background-color: #007bff;
             color: white;
             margin-left: auto;
+            text-align: right;
         }
         .their-message {
             background-color: #e9ecef;
             color: black;
+            margin-right: auto;
+            text-align: left;
+        }
+        .typing-indicator {
+            font-style: italic;
+            color: #666;
+            font-size: 12px;
+            margin: 5px 0;
+            display: none; /* Hidden by default */
         }
         .chat-input {
             padding: 10px;
@@ -111,12 +138,15 @@
     <div class="chat-container">
         <!-- Chat Box for User 1 -->
         <div class="chat-box">
-            <div class="chat-header">User 1</div>
+            <div class="chat-header">User 1 <span id="status1" class="status"></span></div>
             <div class="token-area">
                 <input type="text" id="tokenInput1" placeholder="Enter User 1 Access Token">
                 <button onclick="connectUser1()">Connect</button>
+                <button id="pingButton1" onclick="pingUser1()" disabled>Ping</button>
             </div>
-            <div class="chat-messages" id="messages1"></div>
+            <div class="chat-messages" id="messages1">
+                <div id="typing1" class="typing-indicator">User 2 is typing...</div>
+            </div>
             <div class="chat-input">
                 <input type="text" id="input1" placeholder="Type a message..." disabled>
                 <button id="sendButton1" onclick="sendMessage1()" disabled>Send</button>
@@ -125,12 +155,15 @@
 
         <!-- Chat Box for User 2 -->
         <div class="chat-box">
-            <div class="chat-header">User 2</div>
+            <div class="chat-header">User 2 <span id="status2" class="status"></span></div>
             <div class="token-area">
                 <input type="text" id="tokenInput2" placeholder="Enter User 2 Access Token">
                 <button onclick="connectUser2()">Connect</button>
+                <button id="pingButton2" onclick="pingUser2()" disabled>Ping</button>
             </div>
-            <div class="chat-messages" id="messages2"></div>
+            <div class="chat-messages" id="messages2">
+                <div id="typing2" class="typing-indicator">User 1 is typing...</div>
+            </div>
             <div class="chat-input">
                 <input type="text" id="input2" placeholder="Type a message..." disabled>
                 <button id="sendButton2" onclick="sendMessage2()" disabled>Send</button>
@@ -139,117 +172,246 @@
     </div>
 
     <!-- SignalR Client Library -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/6.0.1/signalr.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/6.0.1/signalr.js"></script>
     <script>
-        // SignalR connections
         let connection1 = null;
         let connection2 = null;
+        let chatId1 = null;
+        let chatId2 = null;
+        let typingTimeout1 = null;
+        let typingTimeout2 = null;
 
-        // User IDs (hardcoded for simplicity; replace with actual IDs from your tokens if needed)
-        const user1Id = "user1";
-        const user2Id = "user2";
+        const user1Id = "dfa12bb8-91fb-45ef-89ed-36427788d39e";
+        const user2Id = "cf7a7239-a1a3-45c3-b653-b657ed5c55fa";
 
-        // DOM elements
         const messages1 = document.getElementById("messages1");
         const messages2 = document.getElementById("messages2");
         const input1 = document.getElementById("input1");
         const input2 = document.getElementById("input2");
         const sendButton1 = document.getElementById("sendButton1");
         const sendButton2 = document.getElementById("sendButton2");
+        const status1 = document.getElementById("status1");
+        const status2 = document.getElementById("status2");
+        const pingButton1 = document.getElementById("pingButton1");
+        const pingButton2 = document.getElementById("pingButton2");
+        const typing1 = document.getElementById("typing1");
+        const typing2 = document.getElementById("typing2");
 
-        // Connect User 1
-        function connectUser1() {
-            const token = document.getElementById("tokenInput1").value.trim();
-            if (!token) {
+        const baseUrl = "https://localhost:8081";
+
+        function addMessage(chatBox, senderId, receiverId, currentUserId, content) {
+            const isMyMessage = senderId.toLowerCase() === currentUserId.toLowerCase();
+            const msgDiv = document.createElement("div");
+            msgDiv.className = "message";
+            msgDiv.classList.add(isMyMessage ? "my-message" : "their-message");
+            msgDiv.textContent = content;
+            chatBox.insertBefore(msgDiv, chatBox.querySelector(".typing-indicator")); // Insert before typing indicator
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        async function fetchMessages(chatId, chatBox, currentUserId) {
+            const response = await fetch(`${baseUrl}/privatechat/messages/${chatId}`, {
+                headers: { "Authorization": `Bearer ${chatBox === messages1 ? token1 : token2}` }
+            });
+            if (response.ok) {
+                const messages = await response.json();
+                messages.forEach(msg => {
+                    addMessage(chatBox, msg.senderId, msg.receiverId, currentUserId, msg.content);
+                });
+            } else {
+                console.error("Failed to fetch messages:", await response.text());
+            }
+        }
+
+        function updateStatus(statusElement, isOnline) {
+            statusElement.classList.toggle("online", isOnline);
+        }
+
+        function showTyping(chatBox, isTyping) {
+            const typingIndicator = chatBox === messages1 ? typing1 : typing2;
+            typingIndicator.style.display = isTyping ? "block" : "none";
+        }
+
+        let token1 = null;
+        async function connectUser1() {
+            token1 = document.getElementById("tokenInput1").value.trim();
+            if (!token1) {
                 alert("Please enter a token for User 1");
                 return;
             }
 
             connection1 = new signalR.HubConnectionBuilder()
-                .withUrl("http://localhost:5000/hubs/chat", { // Replace with your server URL
-                    accessTokenFactory: () => token
-                })
+                .withUrl(`${baseUrl}/hubs/chat`, { accessTokenFactory: () => token1 })
                 .configureLogging(signalR.LogLevel.Information)
                 .build();
 
-            connection1.on("ReceiveMessage", (fromUserId, message) => {
-                addMessage(messages1, fromUserId === user1Id, message);
+            connection1.on("ReceiveNewPrivateMessage", (message) => {
+                addMessage(messages1, message.senderId, message.receiverId, user1Id, message.content);
+                chatId1 = message.chatRoomId;
             });
 
-            connection1.start()
-                .then(() => {
-                    console.log("User 1 connected");
-                    input1.disabled = false;
-                    sendButton1.disabled = false;
-                })
-                .catch(err => console.error("User 1 connection failed:", err));
+            connection1.on("NewUserConnected", (user) => {
+                if (user.userId.toLowerCase() === user1Id.toLowerCase()) updateStatus(status1, true);
+                if (user.userId.toLowerCase() === user2Id.toLowerCase()) updateStatus(status2, true);
+            });
+
+            connection1.on("NewUserDisconnected", (user) => {
+                if (user.userId.toLowerCase() === user1Id.toLowerCase()) updateStatus(status1, false);
+                if (user.userId.toLowerCase() === user2Id.toLowerCase()) updateStatus(status2, false);
+            });
+
+            connection1.on("ReceiverIsTyping", (isTyping, avatar) => {
+                showTyping(messages1, isTyping);
+            });
+
+            connection1.on("ReceiverStopTyping", (isTyping) => {
+                showTyping(messages1, isTyping);
+            });
+
+            connection1.on("Ping", (response) => {
+                console.log("Ping response for User 1:", response);
+                alert("User 1 Ping: " + response);
+            });
+
+            await connection1.start();
+            console.log("User 1 connected");
+            input1.disabled = false;
+            sendButton1.disabled = false;
+            pingButton1.disabled = false;
+            updateStatus(status1, true);
         }
 
-        // Connect User 2
-        function connectUser2() {
-            const token = document.getElementById("tokenInput2").value.trim();
-            if (!token) {
+        let token2 = null;
+        async function connectUser2() {
+            token2 = document.getElementById("tokenInput2").value.trim();
+            if (!token2) {
                 alert("Please enter a token for User 2");
                 return;
             }
 
             connection2 = new signalR.HubConnectionBuilder()
-                .withUrl("http://localhost:5000/hubs/chat", { // Replace with your server URL
-                    accessTokenFactory: () => token
-                })
+                .withUrl(`${baseUrl}/hubs/chat`, { accessTokenFactory: () => token2 })
                 .configureLogging(signalR.LogLevel.Information)
                 .build();
 
-            connection2.on("ReceiveMessage", (fromUserId, message) => {
-                addMessage(messages2, fromUserId === user2Id, message);
+            connection2.on("ReceiveNewPrivateMessage", (message) => {
+                addMessage(messages2, message.senderId, message.receiverId, user2Id, message.content);
+                chatId2 = message.chatRoomId;
             });
 
-            connection2.start()
-                .then(() => {
-                    console.log("User 2 connected");
-                    input2.disabled = false;
-                    sendButton2.disabled = false;
-                })
-                .catch(err => console.error("User 2 connection failed:", err));
+            connection2.on("NewUserConnected", (user) => {
+                if (user.userId.toLowerCase() === user1Id.toLowerCase()) updateStatus(status1, true);
+                if (user.userId.toLowerCase() === user2Id.toLowerCase()) updateStatus(status2, true);
+            });
+
+            connection2.on("NewUserDisconnected", (user) => {
+                if (user.userId.toLowerCase() === user1Id.toLowerCase()) updateStatus(status1, false);
+                if (user.userId.toLowerCase() === user2Id.toLowerCase()) updateStatus(status2, false);
+            });
+
+            connection2.on("ReceiverIsTyping", (isTyping, avatar) => {
+                showTyping(messages2, isTyping);
+            });
+
+            connection2.on("ReceiverStopTyping", (isTyping) => {
+                showTyping(messages2, isTyping);
+            });
+
+            connection2.on("Ping", (response) => {
+                console.log("Ping response for User 2:", response);
+                alert("User 2 Ping: " + response);
+            });
+
+            await connection2.start();
+            console.log("User 2 connected");
+            input2.disabled = false;
+            sendButton2.disabled = false;
+            pingButton2.disabled = false;
+            updateStatus(status2, true);
         }
 
-        // Add message to chat box
-        function addMessage(chatBox, isMyMessage, message) {
-            const msgDiv = document.createElement("div");
-            msgDiv.className = "message";
-            msgDiv.classList.add(isMyMessage ? "my-message" : "their-message");
-            msgDiv.textContent = message;
-            chatBox.appendChild(msgDiv);
-            chatBox.scrollTop = chatBox.scrollHeight;
-        }
+        async function sendMessage1() {
+            const content = input1.value.trim();
+            if (!content || !connection1) return;
 
-        // Send message from User 1
-        function sendMessage1() {
-            const message = input1.value.trim();
-            if (message && connection1) {
-                connection1.invoke("SendMessage", user2Id, message)
-                    .then(() => {
-                        addMessage(messages1, true, message);
-                        input1.value = "";
-                    })
-                    .catch(err => console.error("Send failed:", err));
+            await connection1.invoke("StopTyping", user2Id); // Stop typing when sending
+            const response = await fetch(`${baseUrl}/api/client/PrivateChat/send-message`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token1}`
+                },
+                body: JSON.stringify({ receiverId: user2Id, Content: content })
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                chatId1 = result.data.chatId;
+                input1.value = "";
+                if (!messages1.children.length) fetchMessages(chatId1, messages1, user1Id);
+            } else {
+                console.error("Send failed:", await response.text());
             }
         }
 
-        // Send message from User 2
-        function sendMessage2() {
-            const message = input2.value.trim();
-            if (message && connection2) {
-                connection2.invoke("SendMessage", user1Id, message)
-                    .then(() => {
-                        addMessage(messages2, true, message);
-                        input2.value = "";
-                    })
-                    .catch(err => console.error("Send failed:", err));
+        async function sendMessage2() {
+            const content = input2.value.trim();
+            if (!content || !connection2) return;
+
+            await connection2.invoke("StopTyping", user1Id);
+            const response = await fetch(`${baseUrl}/api/client/PrivateChat/send-message`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token2}`
+                },
+                body: JSON.stringify({ receiverId: user1Id, Content: content })
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                chatId2 = result.data.chatId;
+                input2.value = "";
+                if (!messages2.children.length) fetchMessages(chatId2, messages2, user2Id);
+            } else {
+                console.error("Send failed:", await response.text());
             }
         }
 
-        // Enable sending with Enter key
+        async function pingUser1() {
+            if (connection1) {
+                await connection1.invoke("Ping");
+            }
+        }
+
+        async function pingUser2() {
+            if (connection2) {
+                await connection2.invoke("Ping");
+            }
+        }
+
+        input1.addEventListener("input", async () => {
+            if (!connection1) return;
+            if (input1.value.trim()) {
+                await connection1.invoke("IsTyping", user2Id);
+                clearTimeout(typingTimeout1);
+                typingTimeout1 = setTimeout(async () => {
+                    await connection1.invoke("StopTyping", user2Id);
+                }, 2000);
+            }
+        });
+
+        input2.addEventListener("input", async () => {
+            if (!connection2) return;
+            if (input2.value.trim()) {
+                await connection2.invoke("IsTyping", user1Id);
+                clearTimeout(typingTimeout2);
+                typingTimeout2 = setTimeout(async () => {
+                    await connection2.invoke("StopTyping", user1Id);
+                }, 2000);
+            }
+        });
+
         input1.onkeypress = (e) => { if (e.key === "Enter") sendMessage1(); };
         input2.onkeypress = (e) => { if (e.key === "Enter") sendMessage2(); };
     </script>
