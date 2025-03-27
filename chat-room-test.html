@@ -223,7 +223,7 @@
             </div>
             <div class="chat-messages" id="messages"></div>
             <div class="chat-input">
-                <div id="typing" class="typing-indicator">Typing...</div>
+                <div id="typing" class="typing-indicator"></div>
                 <div class="chat-input-bottom">
                     <input type="text" id="input" placeholder="Type a message..." disabled>
                     <button id="sendButton" onclick="sendMessage()" disabled>Send</button>
@@ -326,11 +326,12 @@
         }
 
         async function fetchMessages(chatId, chatBox, currentUserId) {
-            const response = await fetch(`${baseUrl}/privatechat/messages/${chatId}`, {
+            const response = await fetch(`${baseUrl}/api/client/PrivateChat/get-user-message-pagination?ChatId=${chatId}`, {
                 headers: { "Authorization": `Bearer ${token}` }
             });
             if (response.ok) {
-                const messagesData = await response.json();
+                const result = await response.json();
+                const messagesData = result.responseData.results;
                 chatBox.innerHTML = '';
                 messagesData.forEach(msg => {
                     addMessage(chatBox, msg.senderId, msg.receiverId, currentUserId, msg.content);
@@ -341,7 +342,13 @@
         }
 
         function showTyping(isTyping) {
-            typing.style.display = isTyping ? "block" : "none";
+            if (isTyping && selectedReceiverUsername) {
+                typing.textContent = `${selectedReceiverUsername} is typing...`;
+                typing.style.display = "block";
+            } else {
+                typing.textContent = "";
+                typing.style.display = "none";
+            }
         }
 
         async function fetchChatList() {
@@ -411,12 +418,16 @@
 
             connection.on("ReceiverIsTyping", (isTyping, senderId) => {
                 console.log(`ReceiverIsTyping received: isTyping=${isTyping}, senderId=${senderId}, selectedReceiverId=${selectedReceiverId}`);
-                showTyping(isTyping);
+                if (senderId === selectedReceiverId) {
+                    showTyping(isTyping);
+                }
             });
 
             connection.on("ReceiverStopTyping", (senderId) => {
                 console.log(`ReceiverStopTyping received: senderId=${senderId}, selectedReceiverId=${selectedReceiverId}`);
-                showTyping(false);
+                if (senderId === selectedReceiverId) {
+                    showTyping(false);
+                }
             });
 
             await connection.start();
