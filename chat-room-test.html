@@ -3,84 +3,141 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SignalR Chat Test (User 1 vs User 2)</title>
+    <title>Messenger Chat</title>
     <style>
         body {
             font-family: Arial, sans-serif;
             margin: 0;
-            padding: 20px;
+            height: 100vh;
             display: flex;
             justify-content: center;
+            align-items: center;
             background-color: #f0f0f0;
         }
-        .chat-container {
-            display: flex;
-            gap: 20px;
-        }
-        .chat-box {
-            width: 400px;
+        .login-container {
             background-color: white;
-            border: 1px solid #ccc;
+            padding: 20px;
             border-radius: 5px;
-            display: flex;
-            flex-direction: column;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
-        .chat-header {
-            padding: 10px;
-            background-color: #007bff;
-            color: white;
+            width: 300px;
             text-align: center;
-            border-radius: 5px 5px 0 0;
-            position: relative;
         }
-        .status {
-            position: absolute;
-            right: 10px;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            background-color: #ccc; /* Grey = offline */
+        .login-container.hidden {
+            display: none;
         }
-        .online {
-            background-color: #28a745; /* Green = online */
-        }
-        .token-area {
-            padding: 10px;
-            border-bottom: 1px solid #ccc;
-            display: flex;
-            gap: 5px;
-        }
-        .token-area input {
-            flex-grow: 1;
-            padding: 5px;
+        .login-container input {
+            width: 100%;
+            padding: 8px;
+            margin: 10px 0;
             border: 1px solid #ccc;
             border-radius: 3px;
             box-sizing: border-box;
         }
-        .token-area button {
-            padding: 5px 10px;
-            background-color: #28a745;
+        .login-container button {
+            width: 100%;
+            padding: 10px;
+            background-color: #007bff;
             color: white;
             border: none;
             border-radius: 3px;
             cursor: pointer;
         }
-        .token-area button:hover {
-            background-color: #218838;
+        .login-container button:hover {
+            background-color: #0056b3;
+        }
+        .chat-app {
+            display: none;
+            width: 100%;
+            height: 100%;
+            background-color: white;
+        }
+        .chat-app.active {
+            display: flex;
+        }
+        .chat-sidebar {
+            width: 300px;
+            background-color: #f8f9fa;
+            border-right: 1px solid #ccc;
+            overflow-y: auto;
+        }
+        .chat-sidebar-header {
+            padding: 15px;
+            background-color: #007bff;
+            color: white;
+            text-align: center;
+            font-weight: bold;
+        }
+        .chat-item {
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .chat-item:hover {
+            background-color: #f1f1f1;
+        }
+        .chat-item.active {
+            background-color: #e9ecef;
+        }
+        .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: #ccc;
+        }
+        .chat-info {
+            flex-grow: 1;
+        }
+        .chat-username {
+            font-weight: bold;
+            font-size: 16px;
+        }
+        .chat-last-message {
+            font-size: 12px;
+            color: #666;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .chat-main {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        .chat-header {
+            padding: 15px;
+            background-color: #fff;
+            border-bottom: 1px solid #ccc;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .chat-header .avatar {
+            width: 40px;
+            height: 40px;
+        }
+        .chat-header-info {
+            flex-grow: 1;
+        }
+        .chat-header-username {
+            font-weight: bold;
+            font-size: 18px;
+        }
+        .chat-header-status {
+            font-size: 14px;
+            color: #666;
         }
         .chat-messages {
             flex-grow: 1;
-            padding: 10px;
+            padding: 15px;
             overflow-y: auto;
-            max-height: 300px;
-            position: relative;
+            background-color: #fff;
         }
         .message {
-            margin: 5px 0;
-            padding: 8px;
+            margin: 10px 0;
+            padding: 10px;
             border-radius: 5px;
             max-width: 70%;
             word-wrap: break-word;
@@ -97,27 +154,34 @@
             margin-right: auto;
             text-align: left;
         }
+        .chat-input {
+            padding: 15px;
+            border-top: 1px solid #ccc;
+            background-color: #fff;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
         .typing-indicator {
             font-style: italic;
             color: #666;
             font-size: 12px;
-            margin: 5px 0;
-            display: none; /* Hidden by default */
+            display: none;
+            text-align: left;
         }
-        .chat-input {
-            padding: 10px;
-            border-top: 1px solid #ccc;
+        .chat-input-bottom {
             display: flex;
+            align-items: center;
         }
         .chat-input input {
             flex-grow: 1;
-            padding: 5px;
+            padding: 10px;
             border: 1px solid #ccc;
             border-radius: 3px;
         }
         .chat-input button {
             margin-left: 10px;
-            padding: 5px 10px;
+            padding: 10px 20px;
             background-color: #007bff;
             color: white;
             border: none;
@@ -135,38 +199,35 @@
     </style>
 </head>
 <body>
-    <div class="chat-container">
-        <!-- Chat Box for User 1 -->
-        <div class="chat-box">
-            <div class="chat-header">User 1 <span id="status1" class="status"></span></div>
-            <div class="token-area">
-                <input type="text" id="tokenInput1" placeholder="Enter User 1 Access Token">
-                <button onclick="connectUser1()">Connect</button>
-                <button id="pingButton1" onclick="pingUser1()" disabled>Ping</button>
-            </div>
-            <div class="chat-messages" id="messages1">
-                <div id="typing1" class="typing-indicator">User 2 is typing...</div>
-            </div>
-            <div class="chat-input">
-                <input type="text" id="input1" placeholder="Type a message..." disabled>
-                <button id="sendButton1" onclick="sendMessage1()" disabled>Send</button>
-            </div>
-        </div>
+    <!-- Login Screen -->
+    <div class="login-container" id="loginContainer">
+        <h2>Login to Chat</h2>
+        <input type="email" id="emailInput" placeholder="Email">
+        <input type="password" id="passwordInput" placeholder="Password">
+        <button onclick="login()">Login</button>
+    </div>
 
-        <!-- Chat Box for User 2 -->
-        <div class="chat-box">
-            <div class="chat-header">User 2 <span id="status2" class="status"></span></div>
-            <div class="token-area">
-                <input type="text" id="tokenInput2" placeholder="Enter User 2 Access Token">
-                <button onclick="connectUser2()">Connect</button>
-                <button id="pingButton2" onclick="pingUser2()" disabled>Ping</button>
+    <!-- Chat Application -->
+    <div class="chat-app" id="chatApp">
+        <div class="chat-sidebar">
+            <div class="chat-sidebar-header" id="sidebarHeader"></div>
+            <div id="chatList"></div>
+        </div>
+        <div class="chat-main">
+            <div class="chat-header" id="chatHeader">
+                <img id="receiverAvatar" class="avatar" src="default-avatar.png" alt="Avatar">
+                <div class="chat-header-info">
+                    <div class="chat-header-username" id="receiverUsername">Select a chat</div>
+                    <div class="chat-header-status" id="receiverStatus">No chat selected</div>
+                </div>
             </div>
-            <div class="chat-messages" id="messages2">
-                <div id="typing2" class="typing-indicator">User 1 is typing...</div>
-            </div>
+            <div class="chat-messages" id="messages"></div>
             <div class="chat-input">
-                <input type="text" id="input2" placeholder="Type a message..." disabled>
-                <button id="sendButton2" onclick="sendMessage2()" disabled>Send</button>
+                <div id="typing" class="typing-indicator">Typing...</div>
+                <div class="chat-input-bottom">
+                    <input type="text" id="input" placeholder="Type a message..." disabled>
+                    <button id="sendButton" onclick="sendMessage()" disabled>Send</button>
+                </div>
             </div>
         </div>
     </div>
@@ -174,30 +235,85 @@
     <!-- SignalR Client Library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/6.0.1/signalr.js"></script>
     <script>
-        let connection1 = null;
-        let connection2 = null;
-        let chatId1 = null;
-        let chatId2 = null;
-        let typingTimeout1 = null;
-        let typingTimeout2 = null;
+        let connection = null;
+        let token = null;
+        let userId = null;
+        let userFullName = null;
+        let chatId = null;
+        let selectedReceiverId = null;
+        let selectedReceiverUsername = null;
+        let selectedReceiverAvatar = null;
+        let typingTimeout = null;
 
-        const user1Id = "e6968c31-5dd5-4933-8d5e-a195e1d01491";
-        const user2Id = "8f69647f-f6c1-4bd5-be7f-1125fd37ef91";
-
-        const messages1 = document.getElementById("messages1");
-        const messages2 = document.getElementById("messages2");
-        const input1 = document.getElementById("input1");
-        const input2 = document.getElementById("input2");
-        const sendButton1 = document.getElementById("sendButton1");
-        const sendButton2 = document.getElementById("sendButton2");
-        const status1 = document.getElementById("status1");
-        const status2 = document.getElementById("status2");
-        const pingButton1 = document.getElementById("pingButton1");
-        const pingButton2 = document.getElementById("pingButton2");
-        const typing1 = document.getElementById("typing1");
-        const typing2 = document.getElementById("typing2");
+        const loginContainer = document.getElementById("loginContainer");
+        const chatApp = document.getElementById("chatApp");
+        const emailInput = document.getElementById("emailInput");
+        const passwordInput = document.getElementById("passwordInput");
+        const sidebarHeader = document.getElementById("sidebarHeader");
+        const chatList = document.getElementById("chatList");
+        const receiverAvatar = document.getElementById("receiverAvatar");
+        const receiverUsername = document.getElementById("receiverUsername");
+        const receiverStatus = document.getElementById("receiverStatus");
+        const messages = document.getElementById("messages");
+        const input = document.getElementById("input");
+        const sendButton = document.getElementById("sendButton");
+        const typing = document.getElementById("typing");
 
         const baseUrl = "https://localhost:8081";
+
+        // Decode JWT to get user ID and additional info
+        function decodeToken(token) {
+            try {
+                const base64Url = token.split('.')[1];
+                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
+                    return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+                }).join(''));
+                const payload = JSON.parse(jsonPayload);
+                return {
+                    userId: payload.sub || payload.id,
+                    fullName: `${payload.given_name} ${payload.family_name}`,
+                    email: payload.email,
+                    avatar: payload.avatar || 'default-avatar.png'
+                };
+            } catch (e) {
+                console.error("Failed to decode token:", e);
+                return null;
+            }
+        }
+
+        // Login function
+        async function login() {
+            const email = emailInput.value.trim();
+            const password = passwordInput.value.trim();
+            if (!email || !password) {
+                alert("Please enter both email and password");
+                return;
+            }
+
+            const response = await fetch(`${baseUrl}/api/auth/Authentication/login`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email, password })
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                token = result.responseData.accessToken;
+                const decoded = decodeToken(token);
+                if (!decoded || !decoded.userId) {
+                    alert("Invalid token received");
+                    return;
+                }
+                userId = decoded.userId;
+                userFullName = decoded.fullName;
+                loginContainer.classList.add("hidden");
+                chatApp.classList.add("active");
+                await connect();
+            } else {
+                alert("Login failed: " + (await response.text()));
+            }
+        }
 
         function addMessage(chatBox, senderId, receiverId, currentUserId, content) {
             const isMyMessage = senderId.toLowerCase() === currentUserId.toLowerCase();
@@ -205,17 +321,18 @@
             msgDiv.className = "message";
             msgDiv.classList.add(isMyMessage ? "my-message" : "their-message");
             msgDiv.textContent = content;
-            chatBox.insertBefore(msgDiv, chatBox.querySelector(".typing-indicator")); // Insert before typing indicator
+            chatBox.appendChild(msgDiv);
             chatBox.scrollTop = chatBox.scrollHeight;
         }
 
         async function fetchMessages(chatId, chatBox, currentUserId) {
             const response = await fetch(`${baseUrl}/privatechat/messages/${chatId}`, {
-                headers: { "Authorization": `Bearer ${chatBox === messages1 ? token1 : token2}` }
+                headers: { "Authorization": `Bearer ${token}` }
             });
             if (response.ok) {
-                const messages = await response.json();
-                messages.forEach(msg => {
+                const messagesData = await response.json();
+                chatBox.innerHTML = '';
+                messagesData.forEach(msg => {
                     addMessage(chatBox, msg.senderId, msg.receiverId, currentUserId, msg.content);
                 });
             } else {
@@ -223,197 +340,138 @@
             }
         }
 
-        function updateStatus(statusElement, isOnline) {
-            statusElement.classList.toggle("online", isOnline);
+        function showTyping(isTyping) {
+            typing.style.display = isTyping ? "block" : "none";
         }
 
-        function showTyping(chatBox, isTyping) {
-            const typingIndicator = chatBox === messages1 ? typing1 : typing2;
-            typingIndicator.style.display = isTyping ? "block" : "none";
-        }
-
-        let token1 = null;
-        async function connectUser1() {
-            token1 = document.getElementById("tokenInput1").value.trim();
-            if (!token1) {
-                alert("Please enter a token for User 1");
-                return;
+        async function fetchChatList() {
+            const response = await fetch(`${baseUrl}/api/client/PrivateChat/get-all-chat-rooms-pagination?pageIndex=1&pageSize=100`, {
+                headers: { "Authorization": `Bearer ${token}` }
+            });
+            if (response.ok) {
+                const result = await response.json();
+                const chatRooms = result.responseData.results;
+                chatList.innerHTML = "";
+                chatRooms.forEach(chat => {
+                    const chatItem = document.createElement("div");
+                    chatItem.className = "chat-item";
+                    chatItem.innerHTML = `
+                        <img src="${chat.avatar || 'default-avatar.png'}" class="avatar" alt="Avatar">
+                        <div class="chat-info">
+                            <div class="chat-username">${chat.username}</div>
+                            <div class="chat-last-message">${chat.lastMessage || 'No messages yet'}</div>
+                        </div>
+                    `;
+                    chatItem.onclick = () => {
+                        chatId = chat.chatId;
+                        selectedReceiverId = chat.receiverId;
+                        selectedReceiverUsername = chat.username;
+                        selectedReceiverAvatar = chat.avatar || 'default-avatar.png';
+                        receiverUsername.textContent = selectedReceiverUsername;
+                        receiverAvatar.src = selectedReceiverAvatar;
+                        receiverStatus.textContent = chat.isOnline ? "Online" : `Last seen: ${new Date(chat.lastActivity).toLocaleString()}`;
+                        fetchMessages(chatId, messages, userId);
+                        document.querySelectorAll(".chat-item").forEach(item => item.classList.remove("active"));
+                        chatItem.classList.add("active");
+                        input.disabled = false;
+                        sendButton.disabled = false;
+                    };
+                    chatList.appendChild(chatItem);
+                });
+            } else {
+                console.error("Failed to fetch chat list:", await response.text());
             }
+        }
 
-            connection1 = new signalR.HubConnectionBuilder()
-                .withUrl(`${baseUrl}/hubs/chat`, { accessTokenFactory: () => token1 })
+        async function connect() {
+            sidebarHeader.textContent = `${userFullName}'s Chats`;
+
+            connection = new signalR.HubConnectionBuilder()
+                .withUrl(`${baseUrl}/hubs/chat`, { accessTokenFactory: () => token })
                 .configureLogging(signalR.LogLevel.Information)
                 .build();
 
-            connection1.on("ReceiveNewPrivateMessage", (message) => {
-                addMessage(messages1, message.senderId, message.receiverId, user1Id, message.content);
-                chatId1 = message.chatRoomId;
+            connection.on("ReceiveNewPrivateMessage", (message) => {
+                if (message.chatRoomId === chatId) {
+                    addMessage(messages, message.senderId, message.receiverId, userId, message.content);
+                }
+                fetchChatList();
             });
 
-            connection1.on("NewUserConnected", (user) => {
-                if (user.userId.toLowerCase() === user1Id.toLowerCase()) updateStatus(status1, true);
-                if (user.userId.toLowerCase() === user2Id.toLowerCase()) updateStatus(status2, true);
+            connection.on("NewUserConnected", (user) => {
+                if (user.userId.toLowerCase() === userId.toLowerCase()) {
+                    console.log("User connected:", userId);
+                }
+                fetchChatList();
             });
 
-            connection1.on("NewUserDisconnected", (user) => {
-                if (user.userId.toLowerCase() === user1Id.toLowerCase()) updateStatus(status1, false);
-                if (user.userId.toLowerCase() === user2Id.toLowerCase()) updateStatus(status2, false);
+            connection.on("NewUserDisconnected", (user) => {
+                fetchChatList();
             });
 
-            connection1.on("ReceiverIsTyping", (isTyping, avatar) => {
-                showTyping(messages1, isTyping);
+            connection.on("ReceiverIsTyping", (isTyping, senderId) => {
+                console.log(`ReceiverIsTyping received: isTyping=${isTyping}, senderId=${senderId}, selectedReceiverId=${selectedReceiverId}`);
+                showTyping(isTyping);
             });
 
-            connection1.on("ReceiverStopTyping", (isTyping) => {
-                showTyping(messages1, isTyping);
+            connection.on("ReceiverStopTyping", (senderId) => {
+                console.log(`ReceiverStopTyping received: senderId=${senderId}, selectedReceiverId=${selectedReceiverId}`);
+                showTyping(false);
             });
 
-            connection1.on("Ping", (response) => {
-                console.log("Ping response for User 1:", response);
-                alert("User 1 Ping: " + response);
-            });
-
-            await connection1.start();
-            console.log("User 1 connected");
-            input1.disabled = false;
-            sendButton1.disabled = false;
-            pingButton1.disabled = false;
-            updateStatus(status1, true);
+            await connection.start();
+            console.log("Connected:", userId);
+            await fetchChatList();
         }
 
-        let token2 = null;
-        async function connectUser2() {
-            token2 = document.getElementById("tokenInput2").value.trim();
-            if (!token2) {
-                alert("Please enter a token for User 2");
+        async function sendMessage() {
+            const content = input.value.trim();
+            if (!content || !connection || !selectedReceiverId) {
+                if (!selectedReceiverId) alert("Please select a chat from the list first.");
                 return;
             }
 
-            connection2 = new signalR.HubConnectionBuilder()
-                .withUrl(`${baseUrl}/hubs/chat`, { accessTokenFactory: () => token2 })
-                .configureLogging(signalR.LogLevel.Information)
-                .build();
-
-            connection2.on("ReceiveNewPrivateMessage", (message) => {
-                addMessage(messages2, message.senderId, message.receiverId, user2Id, message.content);
-                chatId2 = message.chatRoomId;
-            });
-
-            connection2.on("NewUserConnected", (user) => {
-                if (user.userId.toLowerCase() === user1Id.toLowerCase()) updateStatus(status1, true);
-                if (user.userId.toLowerCase() === user2Id.toLowerCase()) updateStatus(status2, true);
-            });
-
-            connection2.on("NewUserDisconnected", (user) => {
-                if (user.userId.toLowerCase() === user1Id.toLowerCase()) updateStatus(status1, false);
-                if (user.userId.toLowerCase() === user2Id.toLowerCase()) updateStatus(status2, false);
-            });
-
-            connection2.on("ReceiverIsTyping", (isTyping, avatar) => {
-                showTyping(messages2, isTyping);
-            });
-
-            connection2.on("ReceiverStopTyping", (isTyping) => {
-                showTyping(messages2, isTyping);
-            });
-
-            connection2.on("Ping", (response) => {
-                console.log("Ping response for User 2:", response);
-                alert("User 2 Ping: " + response);
-            });
-
-            await connection2.start();
-            console.log("User 2 connected");
-            input2.disabled = false;
-            sendButton2.disabled = false;
-            pingButton2.disabled = false;
-            updateStatus(status2, true);
-        }
-
-        async function sendMessage1() {
-            const content = input1.value.trim();
-            if (!content || !connection1) return;
-
-            await connection1.invoke("StopTyping", user2Id); // Stop typing when sending
+            await connection.invoke("StopTyping", selectedReceiverId);
             const response = await fetch(`${baseUrl}/api/client/PrivateChat/send-message`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    "Authorization": `Bearer ${token1}`
+                    "Authorization": `Bearer ${token}`
                 },
-                body: JSON.stringify({ receiverId: user2Id, Content: content })
+                body: JSON.stringify({ receiverId: selectedReceiverId, Content: content })
             });
 
             if (response.ok) {
                 const result = await response.json();
-                chatId1 = result.data.chatId;
-                input1.value = "";
-                if (!messages1.children.length) fetchMessages(chatId1, messages1, user1Id);
+                chatId = result.data.chatId;
+                input.value = "";
+                if (!messages.children.length) fetchMessages(chatId, messages, userId);
+                await fetchChatList();
             } else {
                 console.error("Send failed:", await response.text());
             }
         }
 
-        async function sendMessage2() {
-            const content = input2.value.trim();
-            if (!content || !connection2) return;
-
-            await connection2.invoke("StopTyping", user1Id);
-            const response = await fetch(`${baseUrl}/api/client/PrivateChat/send-message`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${token2}`
-                },
-                body: JSON.stringify({ receiverId: user1Id, Content: content })
-            });
-
-            if (response.ok) {
-                const result = await response.json();
-                chatId2 = result.data.chatId;
-                input2.value = "";
-                if (!messages2.children.length) fetchMessages(chatId2, messages2, user2Id);
-            } else {
-                console.error("Send failed:", await response.text());
-            }
-        }
-
-        async function pingUser1() {
-            if (connection1) {
-                await connection1.invoke("Ping");
-            }
-        }
-
-        async function pingUser2() {
-            if (connection2) {
-                await connection2.invoke("Ping");
-            }
-        }
-
-        input1.addEventListener("input", async () => {
-            if (!connection1) return;
-            if (input1.value.trim()) {
-                await connection1.invoke("IsTyping", user2Id);
-                clearTimeout(typingTimeout1);
-                typingTimeout1 = setTimeout(async () => {
-                    await connection1.invoke("StopTyping", user2Id);
-                }, 2000);
+        input.addEventListener("input", async () => {
+            if (!connection || !selectedReceiverId) return;
+            const content = input.value.trim();
+            console.log(`Input event: content="${content}", selectedReceiverId=${selectedReceiverId}`);
+            if (content) {
+                try {
+                    await connection.invoke("IsTyping", selectedReceiverId);
+                    console.log("IsTyping invoked for", selectedReceiverId);
+                    clearTimeout(typingTimeout);
+                    typingTimeout = setTimeout(async () => {
+                        await connection.invoke("StopTyping", selectedReceiverId);
+                        console.log("StopTyping invoked for", selectedReceiverId);
+                    }, 2000);
+                } catch (e) {
+                    console.error("Failed to invoke typing event:", e);
+                }
             }
         });
 
-        input2.addEventListener("input", async () => {
-            if (!connection2) return;
-            if (input2.value.trim()) {
-                await connection2.invoke("IsTyping", user1Id);
-                clearTimeout(typingTimeout2);
-                typingTimeout2 = setTimeout(async () => {
-                    await connection2.invoke("StopTyping", user1Id);
-                }, 2000);
-            }
-        });
-
-        input1.onkeypress = (e) => { if (e.key === "Enter") sendMessage1(); };
-        input2.onkeypress = (e) => { if (e.key === "Enter") sendMessage2(); };
+        input.onkeypress = (e) => { if (e.key === "Enter") sendMessage(); };
     </script>
 </body>
 </html>
